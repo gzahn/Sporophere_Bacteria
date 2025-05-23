@@ -22,15 +22,15 @@ The *total* sporosphere bacterial community can be derived from the *unsterile* 
 bacteria present *inside* of spores. The surface sterilized replicates should have bacteria that was *only* inside of spores.
 Therefore, the surface bacterial community might be inferred as:
 
-				surface_community = total_community - internal_community
-						    (unsterilized)  -  (sterlized)
+		surface_community = total_community - internal_community
+				(unsterilized)  -  (sterlized)
 
 Additionally, bulk soil from the INVAM cultures was sequenced and are identified as treatment == "invam bulk soil".
 
 These can provide the background bacterial community present in the soil.
 Therefore the bacterial community that is especially associated with spore surfaces can be inferred as:
 
-                                surface_community = total_community - internal_community - invam_soil
+                surface_community = total_community - internal_community - invam_soil
 
 ### Taxonomic database
 
