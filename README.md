@@ -4,6 +4,7 @@ Influence of AMF spore traits on associated bacteria
 
 ___
 
+![](https://raw.githubusercontent.com/gzahn/Sporophere_Bacteria/refs/heads/main/output/figs/spore_and_bacteria.png)
 
 ## Experimental overview
 
