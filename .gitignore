@@ -1,3 +1,10 @@
+# sequence data
+data/raw
+data/clean
+
+# taxonomy database
+taxonomy/
+
 # History files
 .Rhistory
 .Rapp.history
