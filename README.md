@@ -33,6 +33,11 @@ Therefore the bacterial community that is especially associated with spore surfa
 
                 surface_community = total_community - internal_community - invam_soil
 
+Finally, we sequenced 54 soil samples from NEON sites with a range of *Acaulospora* abundances. The idea is that if we see any bacterial community signatures in spores with high surface ornamentation, we might be able to look back at the NEON soil samples and look for that same community signature across a gradient of "ornamentation abundance."
+
+___
+
+
 ### Taxonomic database
 
 Silva nr99 database v [138.2](https://zenodo.org/records/14169026)
