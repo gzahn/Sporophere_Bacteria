@@ -1,0 +1,1 @@
+cutadapt -g CCTACGGGAGGCAGCAG -a ATTAGAWACCCBDGTAGTCC -G GGACTACHVGGGTWTCTAAT -A CTGCTGCCTCCCGTAGG -n 2 --minimum-length 100 --cores 0 --nextseq-trim=20 -o ./data/raw/cutadapt/SB1_cutadapt_fwd.fastq.gz -p ./data/raw/cutadapt/SB1_cutadapt_rev.fastq.gz ./data/raw/filtN/SB1_filtN_fwd.fastq.gz ./data/raw/filtN/SB1_filtN_rev.fastq.gz 

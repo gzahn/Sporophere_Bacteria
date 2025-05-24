@@ -68,7 +68,6 @@ remove_primers <- function(metadata, # metadata object for multi-seq-run samples
   
   # subset metadata to just that amplicon and get fwd and rev file paths
   x <- metadata[metadata[[amplicon.colname]] == amplicon & !is.na(metadata[[fwd.fp.colname]]),]
-  # x <- metadata2[metadata2[[amplicon.colname]] == amplicon & !is.na(metadata2[[fwd.fp.colname]]),]
   fnFs <- x[[fwd.fp.colname]]
   fnRs <- x[[rev.fp.colname]]
 
@@ -146,7 +145,12 @@ remove_primers <- function(metadata, # metadata object for multi-seq-run samples
   R2.flags <- paste("-G", REV, "-A", FWD.RC) 
   
   # Run Cutadapt
-  file.exists(fnFs.cut)
+  
+  # clean up cutadapt command log file from previous attempts, if present
+  if(file.exists(paste("./R/cutadapt_commands_",amplicon,".sh",sep=""))){
+    file.remove(paste("./R/cutadapt_commands_",amplicon,".sh",sep=""))
+  }
+  
   for(i in seq_along(fnFs.cut)) {
     if(!file.exists(fnFs.cut[i])){
       
@@ -162,20 +166,11 @@ remove_primers <- function(metadata, # metadata object for multi-seq-run samples
                fnRs.filtN[i])
       
       y <- paste("cutadapt",paste(args,collapse = " "),collapse = " ")
-      sink(paste("./R/cutadapt_commands_run6_",amplicon,".sh",sep=""),append = TRUE)
+      sink(paste("./R/cutadapt_commands_",amplicon,".sh",sep=""),append = TRUE)
       cat(y,"\n")
       sink(NULL)
       
-      # system2("cutadapt", args = c(R1.flags,
-      #                              R2.flags,
-      #                              "-n", 2,
-      #                              "--minimum-length 100",
-      #                              "--cores 0",
-      #                              "--nextseq-trim=20",
-      #                              "-o", fnFs.cut[i],
-      #                              "-p", fnRs.cut[i],
-      #                              fnFs.filtN[i],
-      #                              fnRs.filtN[i]))
+      system2("cutadapt", args = args)
     } else {next}
     
   }
@@ -300,6 +295,8 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
                             single.end = TRUE, # use only forward reads and skip rev reads and merging (e.g., for ITS data)?
                             filtered.dir = "filtered", # name of output directory for all QC filtered reads. will be created if not extant. subdirectory of trimmed filepath
                             asv.table.dir = "./ASV_Tables", # path to directory where final ASV table will be saved
+                            control.col = "treatment", # col containing negative control designation
+                            control.indicator = "negative_ctl", # string indicating neg control
                             random.seed = 666){
   
   # tests
@@ -356,7 +353,7 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
                        maxN=0, 
                        maxEE=maxEE, 
                        truncQ=truncQ,
-                       trimRight = c(20,20),#ifelse(any(is.na(trim.right)),0,trim.right),
+                       trimRight = ifelse(any(is.na(trim.right)),0,trim.right),
                        rm.phix=rm.phix, 
                        compress=compress,
                        multithread=multithread)
@@ -409,6 +406,7 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
                       MAX_CONSIST = 10,verbose = 1,
                       randomize = TRUE) # set multithread = FALSE on Windows
   errF_out <- paste0("Run_",as.character(run.id),"_",amplicon,"_err_Fwd.RDS")
+  if(!dir.exists(asv.table.dir)){dir.create(asv.table.dir)}
   saveRDS(errF,file.path(asv.table.dir,errF_out))
   
   
@@ -460,28 +458,33 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
   
   # TRACK READS ####
   getN <- function(x) sum(getUniques(x))
-  
-  if(paired){
-    track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
-    colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
-    rownames(track) <- sample_names
+  if(nrow(out) > 1){
+    if(paired){
+      track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+      colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+      rownames(track) <- sample_names
+    } else {
+      track <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochim))
+      colnames(track) <- c("input", "filtered", "denoisedF", "nonchim")
+      rownames(track) <- sample_names
+    }
+    
+    # make name for read tracking output
+    track.out <- paste0(asv.table.dir,"Run_",as.character(run.id),"_",amplicon,"trackreads.RDS")
+    # export tracking results
+    saveRDS(track,track.out)
+    
   } else {
-    track <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochim))
-    colnames(track) <- c("input", "filtered", "denoisedF", "nonchim")
-    rownames(track) <- sample_names
+    warning("Warning: Only one sample is present in the seq table. Sequence stat tracking disabled. Something is very wrong.")
   }
-  
-  # make name for read tracking output
-  track.out <- paste0(asv.table.dir,"Run_",as.character(run.id),"_",amplicon,"trackreads.RDS")
-  # export tracking results
-  saveRDS(track,track.out)
+    
   
   
   
   # REMOVE CONTAMINANTS ####
   
   # find negative control samples, if any
-  metadata[["control"]] <- metadata[["sample_type"]] == "neg_control"
+  metadata[["control"]] <- metadata[[control.col]] == control.indicator
   
   
   # only run if there are negative control(s) that have at least some reads
@@ -496,7 +499,7 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
   }
   
   # make output name for ASV table
-  asv_out <- paste0(asv.table.dir,"/Run_",as.character(run.id),"_",amplicon,"_ASV_Table.RDS")
+  asv_out <- paste0(asv.table.dir,"/",amplicon,"_ASV_Table.RDS")
   
   saveRDS(seqtab.nochim,asv_out)
 

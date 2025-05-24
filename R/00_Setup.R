@@ -37,8 +37,8 @@ sra_fwd <- paste0(dat$sra_run,"_1.fastq")
 sra_rev <- paste0(dat$sra_run,"_2.fastq")
 
 # get outfile names
-fwd_fp <- file.path("./data/raw",dat$fwd_fp_raw)
-rev_fp <- file.path("./data/raw",dat$rev_fp_raw)
+fwd_fp <- dat$fwd_fp_raw
+rev_fp <- dat$rev_fp_raw
 
 # run download and extraction with sra-toolkit
 for(i in seq_along(acc)){
