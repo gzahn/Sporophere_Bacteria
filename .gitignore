@@ -2,6 +2,9 @@
 data/raw
 data/clean
 
+# big ASV table stuff
+data/ASV_Tables
+
 # taxonomy database
 taxonomy/
 

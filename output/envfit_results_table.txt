@@ -1,0 +1,32 @@
+[1] "Ectosporic"
+
+***VECTORS
+
+                      Eigenvalues Relative_eig     r2 Pr(>r)  
+trait_vol_mean                                 0.0249  0.178  
+trait_shape_median                             0.0048  0.597  
+trait_color_most                               0.0257  0.144  
+trait_investment_mean                          0.0420  0.070 .
+trait_orn_height_mean                          0.1301  0.011 *
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+
+[1] "Endosporic"
+
+***VECTORS
+
+                      Eigenvalues Relative_eig     r2 Pr(>r)  
+trait_vol_mean                                 0.0233  0.173  
+trait_shape_median                             0.0076  0.480  
+trait_color_most                               0.0247  0.167  
+trait_investment_mean                          0.0348  0.117  
+trait_orn_height_mean                          0.1423  0.012 *
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+

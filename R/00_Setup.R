@@ -12,7 +12,8 @@ library(tidyverse)
 
 ## load metadata ####
 dat <- read_csv("./data/metadata/sporosphere_metadata.csv")
-
+# remove failed samples for this script
+dat <- dat[!is.na(dat$sra_run),]
 
 # DOWNLOADS ####
 

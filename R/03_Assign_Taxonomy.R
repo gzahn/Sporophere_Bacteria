@@ -16,15 +16,18 @@ assign_species_db <- "./taxonomy/silva_v138.2_assignSpecies.fa.gz"
 asv_tables <- list.files("./data/ASV_Tables",full.names = TRUE,pattern = "_ASV_Table.RDS")
 asv <- readRDS(asv_tables)
 
+# remove ASVs that don't have at least 100 observations
+asv_thinned <- asv[,which(colSums(asv) >= 100)]
+
 if(file.exists(genus_db)){
       outfile <- str_replace(asv_tables,"_ASV","_genus_Taxonomy")
       
-      tax_genus <- assign_taxonomy_to_asv_table(asv.table=asv,
+      tax_genus <- assign_taxonomy_to_asv_table(asv.table=asv_thinned,
                                           tax.database=genus_db,
                                           multithread=parallel::detectCores(),
                                           random.seed=666,
                                           try.rc = TRUE,
-                                          min.boot=50)
+                                          min.boot=70)
       # export as RDS
       saveRDS(tax_genus,outfile)
       
@@ -33,12 +36,12 @@ if(file.exists(genus_db)){
 if(file.exists(species_db)){
   outfile <- str_replace(asv_tables,"_ASV","_species_Taxonomy")
   
-  tax_species <- assign_taxonomy_to_asv_table(asv.table=asv,
+  tax_species <- assign_taxonomy_to_asv_table(asv.table=asv_thinned,
                                             tax.database=species_db,
                                             multithread=parallel::detectCores(),
                                             random.seed=666,
                                             try.rc = TRUE,
-                                            min.boot=50)
+                                            min.boot=70)
   # export as RDS
   saveRDS(tax_species,outfile)
   

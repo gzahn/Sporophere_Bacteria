@@ -1,12 +1,5 @@
 # SETUP ####
 
-############################################
-# JUST DO THIS FOR RUN 7 THIS TIME
-# Make sure it's finding all the files
-# probably need some code to update metadata?
-
-
-
 # packages
 library(tidyverse)
 library(phyloseq)
@@ -18,11 +11,6 @@ source("./R/functions.R")
 
 # metadata
 meta <- read_csv("./data/metadata/sporosphere_metadata.csv")
-
-if(any(meta$fwd_fp_raw == meta$rev_fp_raw)){
-  meta$fwd_fp_raw[which(meta$fwd_fp_raw == meta$rev_fp_raw)]
-  stop("Some filepaths are duplicated!")
-}
 
 # add cutadapt file paths
 cutadapt_dir <- list.dirs(full.names = TRUE)[grep("cutadapt$",list.dirs(full.names = TRUE))]
@@ -36,6 +24,7 @@ meta <- meta[file.exists(meta$cutadapt_fwd_paths),]
 
 
 # list of sequencing runs
+# just one run for this project...
 meta$run_id <- "run1"
 all_runs <- unique(meta$run_id)
 
@@ -57,15 +46,17 @@ for(seqrun in all_runs){
                     fwd.pattern = "_R1_", # pattern in filepath column indicating fwd reads (to be safe)
                     rev.pattern = "_R2_", # pattern in filepath column indicating rev reads (to be safe),
                     maxEE = c(3,3), # max expected errors for filtration step of dada2 (for single-end cases like ITS, will default to maxEE=2)
-                    trim.right=c(20,20), # amount to trim off of 3' end after quality truncation
+                    trim.right=NA, # amount to trim off of 3' end after quality truncation
                     truncQ = 2, # special value denoting "end of good quality sequence"
                     rm.phix = TRUE, # remove phiX sequences?
                     compress = TRUE, # gzip compression of output?
-                    multithread = (parallel::detectCores() -1), # how many cores to use? Set to FALSE on windows
+                    multithread = (parallel::detectCores() -2), # how many cores to use? Set to FALSE on windows
                     single.end = FALSE, # use only forward reads and skip rev reads and merging (e.g., for ITS data)?
                     filtered.dir = "filtered", # name of output directory for all QC filtered reads. will be created if not extant. subdirectory of trimmed filepath
                     asv.table.dir = "./data/ASV_Tables", # path to directory where final ASV table will be saved
-                    random.seed = 666
+                    random.seed = 666, # random seed
+                    control.col = "treatment", # column name where negative controls are indicated
+                    control.indicator = "negative_ctl" # rows matching this in control.col will be considered negative controls
     )
   } else {break}
 }

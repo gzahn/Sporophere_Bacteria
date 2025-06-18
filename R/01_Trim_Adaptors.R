@@ -41,5 +41,5 @@ remove_primers(metadata=metadata, # metadata object for multi-seq-run samples; m
                rev_pattern="_R2_",
                fwd_primer=FWD_341f,
                rev_primer=REV_806r,
-               multithread=parallel::detectCores()-1)
+               multithread=parallel::detectCores()-2)
 

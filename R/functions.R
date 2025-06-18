@@ -125,6 +125,11 @@ remove_primers <- function(metadata, # metadata object for multi-seq-run samples
                   multithread = ifelse(multithread>1,TRUE,FALSE)) # on Windows, set multithread = FALSE
   }
   
+  # rebuild fnFs.filtN and fnRs.filtN
+  # make output file paths
+  fnFs.filtN <- list.files(unique(filtN_paths),pattern="_filtN_fwd.fastq.gz",full.names = TRUE)
+  fnRs.filtN <- list.files(unique(filtN_paths),pattern="_filtN_rev.fastq.gz",full.names = TRUE)
+  
   # build cutadapt file structure
   path.cut <- file.path(dir.name,"cutadapt")
   # create directories as needed
@@ -347,27 +352,28 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
   
   fns %>% length; filts_f %>% length;rns %>% length; filts_r %>% length
   
-  # filter and trim
-  if(paired){
-    out <- filterAndTrim(fns, filts_f, rns, filts_r, 
-                       maxN=0, 
-                       maxEE=maxEE, 
-                       truncQ=truncQ,
-                       trimRight = ifelse(any(is.na(trim.right)),0,trim.right),
-                       rm.phix=rm.phix, 
-                       compress=compress,
-                       multithread=multithread)
-  } else {
-    out <- filterAndTrim(fns, filts_f,
-                         maxN=0,
-                         maxEE=maxEE[1],
-                         truncQ=truncQ,
-                         trimRight = ifelse(any(is.na(trim.right)),0,trim.right[1]),
-                         rm.phix=rm.phix,
-                         compress=compress,
-                         multithread=multithread)
-    }
-    
+  # # filter and trim
+  # if(paired){
+  #   out <- filterAndTrim(fns, filts_f, rns, filts_r, 
+  #                      maxN=0, 
+  #                      maxEE=maxEE, 
+  #                      truncQ=truncQ,
+  #                      trimRight = ifelse(any(is.na(trim.right)),0,trim.right),
+  #                      rm.phix=rm.phix, 
+  #                      compress=compress,
+  #                      multithread=multithread)
+  # } else {
+  #   out <- filterAndTrim(fns, filts_f,
+  #                        maxN=0,
+  #                        maxEE=maxEE[1],
+  #                        truncQ=truncQ,
+  #                        trimRight = ifelse(any(is.na(trim.right)),0,trim.right[1]),
+  #                        rm.phix=rm.phix,
+  #                        compress=compress,
+  #                        multithread=multithread)
+  #   }
+  #   saveRDS(out,"./output/QC_Stats.RDS")
+    out <- readRDS("./output/QC_Stats.RDS")
   # In case some samples may have had zero reads pass QC, reassign filts
   # for each unique filtered path, go in, find all files, stick them together in one big vector,
   # then sort them to match the metadata sheet by finding any missing and removing those from the filts_f filts_r and samplenames
@@ -402,41 +408,41 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
   
   
   # learn errors
-  errF <- learnErrors(filts_f, multithread=ifelse(multithread>1,TRUE,FALSE), 
+  errF <- learnErrors(filts_f, multithread=ifelse(multithread>1,TRUE,FALSE),
                       MAX_CONSIST = 10,verbose = 1,
                       randomize = TRUE) # set multithread = FALSE on Windows
-  errF_out <- paste0("Run_",as.character(run.id),"_",amplicon,"_err_Fwd.RDS")
+  errF_out <- paste0(amplicon,"_err_Fwd.RDS")
   if(!dir.exists(asv.table.dir)){dir.create(asv.table.dir)}
   saveRDS(errF,file.path(asv.table.dir,errF_out))
-  
+  errF <- readRDS("./data/ASV_Tables/16S_V3V4_err_Fwd.RDS")
   
   if(paired){
-  errR <- learnErrors(filts_r, multithread=ifelse(multithread>1,TRUE,FALSE), 
+  errR <- learnErrors(filts_r, multithread=ifelse(multithread>1,TRUE,FALSE),
                       MAX_CONSIST = 10,verbose = 1,
                       randomize = TRUE) # set multithread = FALSE on Windows
-  errR_out <- paste0("Run_",as.character(run.id),"_",amplicon,"_err_Rev.RDS")
+  errR_out <- paste0(amplicon,"_err_Rev.RDS")
   saveRDS(errR,file.path(asv.table.dir,errR_out))
   }
-    
+  errR <- readRDS("./data/ASV_Tables/16S_V3V4_err_Rev.RDS")  
   
   # dereplication
+  
   derepF <- derepFastq(filts_f, verbose=TRUE)
-  # saveRDS(derepF,file.path(asv.table.dir,paste0("Run_",as.character(run.id),"_",amplicon,"_derep_Fwd.RDS")))
+  saveRDS(derepF,file.path(asv.table.dir,paste0(amplicon,"_derep_Fwd.RDS")))
   if(paired){
     derepR <- derepFastq(filts_r, verbose=TRUE)
-    # saveRDS(derepR,file.path(asv.table.dir,paste0("Run_",as.character(run.id),"_",amplicon,"_derep_Rev.RDS")))
+    saveRDS(derepR,file.path(asv.table.dir,paste0(amplicon,"_derep_Rev.RDS")))
     }
-  
   
   # SAMPLE INFERRENCE ####
   dadaFs <- dada(derepF, err=errF, multithread=ifelse(multithread>1,TRUE,FALSE), 
                  selfConsist = FALSE, verbose=TRUE, pool = "pseudo") # set multithread = FALSE on Windows
-  saveRDS(dadaFs,file.path(asv.table.dir,paste0("Run_",as.character(run.id),"_",amplicon,"_dada_Fwd.RDS")))
+  saveRDS(dadaFs,file.path(asv.table.dir,paste0(amplicon,"_dada_Fwd.RDS")))
   
   if(paired){
     dadaRs <- dada(derepR, err=errR, multithread=ifelse(multithread>1,TRUE,FALSE), 
                    selfConsist = FALSE, verbose=TRUE, pool = "pseudo") # set multithread = FALSE on Windows
-    saveRDS(dadaRs,file.path(asv.table.dir,paste0("Run_",as.character(run.id),"_",amplicon,"_dada_Rev.RDS")))
+    saveRDS(dadaRs,file.path(asv.table.dir,paste0(amplicon,"_dada_Rev.RDS")))
   }
 
     
@@ -455,7 +461,7 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
   
   # REMOVE CHIMERAS ####
   seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=ifelse(multithread>1,TRUE,FALSE), verbose=TRUE)
-  
+  saveRDS(seqtab.nochim,"./data/ASV_Tables/16S_V3V4_seqtab_nochim.RDS")
   # TRACK READS ####
   getN <- function(x) sum(getUniques(x))
   if(nrow(out) > 1){
@@ -470,7 +476,7 @@ build_asv_table <- function(metadata, # metadata object for multi-seq-run sample
     }
     
     # make name for read tracking output
-    track.out <- paste0(asv.table.dir,"Run_",as.character(run.id),"_",amplicon,"trackreads.RDS")
+    track.out <- paste0(asv.table.dir,"/",amplicon,"_trackreads.RDS")
     # export tracking results
     saveRDS(track,track.out)
     
