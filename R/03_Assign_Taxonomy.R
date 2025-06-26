@@ -3,6 +3,8 @@
 ## packages ####
 library(tidyverse)
 library(dada2)
+library(ShortRead)
+library(Biostrings)
 
 ## functions ####
 source("./R/functions.R")
@@ -18,6 +20,7 @@ asv <- readRDS(asv_tables)
 
 # remove ASVs that don't have at least 100 observations
 asv_thinned <- asv[,which(colSums(asv) >= 100)]
+
 
 if(file.exists(genus_db)){
       outfile <- str_replace(asv_tables,"_ASV","_genus_Taxonomy")

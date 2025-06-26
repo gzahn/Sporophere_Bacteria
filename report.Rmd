@@ -1,0 +1,191 @@
+---
+title: "Sporosphere bacteria"
+output: 
+  rmdformats::readthedown
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning=FALSE,message = FALSE)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(phyloseq)
+track <- readRDS("./data/ASV_Tables/16S_V3V4_trackreads.RDS")
+ps <- readRDS("./data/physeq_objects/16S_V3V4_physeq_object_genus.RDS")
+ecto <- readRDS("./data/physeq_objects/ecto_microbiome_ps.RDS")
+endo <- readRDS("./data/physeq_objects/endo_microbiome_ps.RDS")
+meta <- read_csv("./data/metadata/sporosphere_metadata.csv")
+invam <- readRDS("./data/physeq_objects/clean_invam_bulk_soil_physeq_object.RDS")
+theme_set(theme_bw())
+options(scipen = 999)
+
+source("./R/functions.R")
+```
+
+# Sequencing stats 
+
+Sequencing yielded `r track[,1] %>% sum` total raw sequences for the entire study, with a per-sample mean of `r track[,1] %>% mean %>% round` and std. dev. of `r track[,1] %>% sd %>% round`.
+
+
+# QC pipeline
+
+Quality control included fastq filtration with DADA2 (maxEE=c(2,2), truncQ=2), and *de novo* chimera removal.
+
+Read counts at each step:
+```{r}
+track %>% 
+  as.data.frame() %>% 
+  select(input,filtered,nonchim) %>% 
+  pivot_longer(everything()) %>% 
+  mutate(name=factor(name,levels=c("input","filtered","nonchim"))) %>% 
+  ggplot(aes(x=name,y=value,fill=name)) +
+  geom_boxplot() +
+  # geom_density(alpha=.25) +
+  labs(fill="QC step",x="QC step",y="Read counts") +
+  scale_fill_viridis_d(option = 'mako')
+```
+
+
+```{r}
+lost_samples <- 
+ps %>% 
+  subset_samples(sample_names(ps) %in% names(which(sample_sums(ps) == 0))) %>% 
+  microbiome::meta() %>% 
+  dplyr::select(sample_id,isolate,g_spp,treatment)
+```
+
+Potential contaminant ASVs were detected via the prevalence method in *decontam* by comparing each sample against a series of negative controls:
+
+```{r}
+meta %>% 
+  filter(treatment == "negative_ctl") %>% 
+  select(sample_id, notes) %>% 
+  kable %>% 
+  kable_classic()
+```
+
+After QC screening, including the removal of likely contaminant ASVs, `r nrow(lost_samples)` further samples were removed due to having no remaining reads.
+
+```{r}
+lost_samples %>% 
+  kable() %>% 
+  kable_classic()
+```
+
+# Taxonomic assignment
+
+The Silva nr99 database (v138.2) was used to assign taxonomy with *dada2::assign_taxonomy()* using a bootstrap cutoff of 70%. Species-level designations were only assigned when there was a 100% match with reference taxa across the entire amplicon. 
+
+Any taxa that matched to mitochondrial or chloroplast references were removed from all downstream analyses.
+
+
+
+# Microbiome seqgregation
+
+## Removal of bulk soil taxa
+
+To separate out the "endo-sporic" and "ecto-sporic" microbiome components, we first removed taxa from each isolate that were found in similar or lesser relative abundances compared the bulk substrate from INVAM. This is a highly conservative measure, given that some valid members of the sporoshpere microbiome may *also* be present in the builk soil substrate. But it allows us to have greater confidence that the taxa we find in and on spores are truly present there and not resulting from bulk soil contamination.
+
+The INVAM samples varied widely in the total number of reads:
+```{r fig.width=4,fig.height=4}
+data.frame(sample_id = sample_names(invam),
+           read_counts = invam %>% sample_sums) %>% 
+  ggplot(aes(x=sample_id,y=read_counts)) +
+  geom_col() +
+  theme(axis.text.x = element_blank()) +
+  labs(x="INVAM bulk soil samples",y="Final read counts")
+```
+
+## Isolation of endosporic taxa
+
+To identify the ectosporic microbiome, we then removed taxa from the unsterilized treatments that were also found in the surface-sterilized treatments from the same isolate. This is, again, a rather conservative step given that some endosporic taxa may also be genuine ectosporic community members. However, this allows us to speak confidently about the community found associated with the surface of spores without any potential carryover from endosporic taxa.
+
+This plot shows Phylum composition for each spore isolate from INVAM. Left bars are endosporic communities, and right bars are the unsterilized, ectosporic, communities (where paired endosporic taxa have been removed).
+```{r fig.width=12, fig.height=8}
+# look at overlap of surface and endo communities
+x <- ps %>%
+  subset_samples(treatment %in% c("sterile","unsterile"))
+x <- subset_taxa(x,taxa_sums(x) > 0)
+x <- x %>% tax_glom("Species",NArm = FALSE)
+x@sam_data$mergevar <- paste(x@sam_data$isolate,x@sam_data$treatment)
+xm <- merge_samples(x,"mergevar",fun = 'sum')
+xm@sam_data$treatment <- sample_names(xm) %>% str_split(" ") %>% map_chr(2)
+xm@sam_data$isolate <- sample_names(xm) %>% str_split(" ") %>% map_chr(1)
+xm %>% 
+  transform_sample_counts(ra) %>% 
+  plot_bar2(fill="Phylum") +
+  scale_fill_viridis_d(option = 'turbo') +
+  facet_wrap(~isolate,scales='free_x') +
+  theme(axis.text.x=element_blank())
+```
+
+
+
+```{r}
+
+x <- ps %>%
+     subset_samples(treatment %in% c("sterile","unsterile"))
+x <- subset_taxa(x,taxa_sums(x) > 0)
+x <- x %>% subset_taxa(taxa_sums(x) > 0)
+x <- x %>% subset_samples(sample_sums(x) > 0)
+mat <- x %>% transform_sample_counts(ra) %>% otu_table() %>% as.matrix
+
+perm <- vegan::adonis2(mat ~ isolate * treatment,
+               data=microbiome::meta(ps) %>% filter(sample_id %in% row.names(mat)))
+perm <- perm %>% 
+  broom::tidy()
+```
+
+Location (endosporic vs ectosporic) did not, by itself, have significant explanatory power for community structure. However, bacterial communities varied for each isolate, and within each isolate, location was an important predictor, explaining `r 100*(perm %>% filter(term == "isolate:treatment") %>% pluck("R2"))`% of between-sample community dissimilarity.
+
+PermANOVA conducted with *adonis2()*:
+```{r}
+perm  %>% 
+  kable() %>% 
+  kable_classic()
+
+```
+
+# Definition of "core microbiome"
+
+The *microbiome* package was used to explore core membership across a range of detection thresholds and prevalence values. After exploration, we define the "core" microbiome for a given AMF isolate as taxa present at a relative abundance threshold >= 20% in more than half of the existing samples. This is a highly conservative threshold.
+
+```{r}
+core_endo <- readRDS("./output/internal_bacteria_core_membership_by_isolate_df.RDS")
+core_ecto <- readRDS("./output/surface_bacteria_core_membership_by_isolate_df.RDS")
+mod_endo <- readRDS("./output/n_endo_coretaxa_vs_traits_mod.RDS")
+mod_ecto <- readRDS("./output/n_ecto_coretaxa_vs_traits_mod.RDS")
+
+```
+
+Just looking at the number of core taxa across isolates (not identity or composition), no AMF traits other than shape had any significant effect on endosporic core microbiome richness. However, all observed traits had significant effects on ectosporic (total) core microbiome richness:
+
+```{r}
+broom::tidy(mod_ecto) %>% 
+  mutate(location="Ectosporic (total)") %>% 
+  full_join(
+    broom::tidy(mod_endo) %>% 
+      mutate(location="Endosporic")
+  ) %>% 
+  mutate(across(where(is.numeric),function(x){round(x,4)})) %>% 
+  kable %>% 
+  kable_classic()
+```
+
+Here's a look at the core endosporic microbiome taxa across AMF species:
+
+
+```{r, fig.width=8,fig.height=6}
+endo %>% 
+  merge_samples("g_spp") %>% 
+  transform_sample_counts(ra) %>% 
+  subset_taxa(taxa_names(endo) %in% core_endo$asv) %>% 
+  plot_bar2(fill="Phylum") +
+  scale_fill_viridis_d(option='turbo') +
+  labs(y="Relative abundance of\ncore taxa",title = "Endosporic core membership",x="AMF species") +
+  theme(axis.text.x = element_text(angle = 60,hjust=1,vjust=1,face='bold.italic'))
+
+
+```
+
+

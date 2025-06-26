@@ -3,6 +3,8 @@
 ## packages ####
 library(tidyverse)
 library(phyloseq)
+library(Biostrings)
+library(ShortRead)
 
 ## functions ####
 source("./R/functions.R")
@@ -74,8 +76,6 @@ ps@sam_data$isolate <- factor(ps@sam_data$isolate,
                                unique %>% 
                                na.omit %>% 
                                as.character())
-
-
 
 
 
